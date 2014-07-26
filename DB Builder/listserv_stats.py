@@ -9,7 +9,7 @@ listservs = [{'name':'Bros','id':'Label_7','address':'<kdr-brothers-l.cornell.ed
 
 # Create FTP connection object, download db
 #ftp = Website('kdrcornell.com','/intraweb/listservstats',
-#              'hts29@kdrcornell.com','kdrwiki2012')
+#              '*******','*****')
 #ftp.retr('kdr_listserv.db')
 
 # Create SQLite and Gmail connection objects, update db
