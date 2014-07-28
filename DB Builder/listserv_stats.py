@@ -14,10 +14,12 @@ listservs = [{'name':'Bros','id':'Label_7','address':'<kdr-brothers-l.cornell.ed
 
 # Create SQLite and Gmail connection objects, update db
 db = Database('kdr_listserv.db','id_lookup.csv')
-gmail = GmailAPI(db)
-gmail.loadMsgs(listservs)
-db.updateLookup()
-db.joinThreads()
+#gmail = GmailAPI(db)
+#gmail.loadMsgs(listservs)
+#db.updateLookup()
+#db.joinThreads()
+db.addTextMetadata()
+db.commit()
 
 # Close SQLite connection, upload updated db file
 db.close()

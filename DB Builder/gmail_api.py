@@ -26,7 +26,7 @@ class GmailAPI:
         # Try to retrieve credentials from storage or run the flow to generate them
         self.credentials = STORAGE.get()
         if self.credentials is None or self.credentials.invalid:
-            self.credentials = run(self.flow, STORAGE, http=http)
+            self.credentials = run(self.flow, STORAGE, http=self.http)
 
         # Authorize the httplib2.Http object with our credentials
         self.http = self.credentials.authorize(self.http)
@@ -55,7 +55,7 @@ class GmailAPI:
                 self.batch.add(self.messages.get(userId='me',id=num),request_id=num)
                 n = n + 1
                                
-                # After 100 or at the end of the list, execute batch and commit
+                # After 1000 or at the end of the list, execute batch and commit
                 if ((n % 1000) == 0) | (n == len(idList)):
                     print str(n) + " / " + str(len(idList))
                     try:
@@ -85,8 +85,7 @@ class GmailAPI:
                                                   q=query, maxResults=500,
                                                   pageToken=msgs['nextPageToken']))
             else:
-                break
-        print len(idList)   
+                break 
         return idList
     
     # Callback function for batch request - handles db insertion
@@ -115,38 +114,36 @@ class GmailAPI:
                 listserv = self.labelLookup(tag['value'])
 
         # Recursively find all body text
+        container = ['multipart/alternative','multipart/related','multipart/mixed']
+        textData = ['text/plain','text/html']
         def getBody(payload,output):
-            if payload['mimeType'] == 'multipart/alternative':
+            #print payload['mimeType']
+            if payload['mimeType'] in container:
                 for part in payload['parts']:
-                    try:
-                        body = base64.urlsafe_b64decode(part['body']['data'].encode('UTF-8'))
-                    except KeyError:
-                        print part['mimeType'] + ": No Data"
-                        body = ''
-                    output[part['mimeType']] = body
-            elif payload['mimeType'] in ['multipart/related','multipart/mixed']:
-                for part in payload['parts']:
-                    getBody(part,output)
-            elif payload['mimeType'] == 'text/plain':
+                    output = getBody(part,output)
+            elif payload['mimeType'] in textData:
                 try:
                     body = base64.urlsafe_b64decode(payload['body']['data'].encode('UTF-8'))
                 except KeyError:
                     print payload['mimeType'] + ": No Data"
                     body = ''
-                output['text/plain'] = body
+                output[payload['mimeType']] = body
 
             return output
 
         # Process body
         msg = {}
         msg = getBody(response['payload'],msg)
-        text = self.removeQuotes(msg['text/plain'],True)
+        
+        # If there is a text/plain component, parse and insert it
+        if 'text/plain' in msg.keys():
+            text = self.removeQuotes(msg['text/plain'],True)
+            self.db.insertText((msgId,text))
         
         # Insert record into db
         self.db.insertMsg((response['id'],response['threadId'],response['threadId'],
                            date,sender,alias,subject,response['snippet'],
                            response['sizeEstimate'],listserv))
-        self.db.insertBody((response['id'],text))
 
     # Process request while making sure API doesn't exceed rate limit
     def cooldown(self,request):
