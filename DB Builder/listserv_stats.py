@@ -8,19 +8,17 @@ listservs = [{'name':'Bros','id':'Label_7','address':'<kdr-brothers-l.cornell.ed
              {'name':'Spams','id':'Label_8','address':'<kdr-spam-l.cornell.edu>'}]
 
 # Create FTP connection object, download db
-#ftp = Website('kdrcornell.com','/intraweb/listservstats',
-#              '*******','*****')
-#ftp.retr('kdr_listserv.db')
+ftp = Website('kdrcornell.com','/intraweb/listservstats',
+              '*','*')
+ftp.retr('kdr_listserv.db')
 
 # Create SQLite and Gmail connection objects, update db
 db = Database('kdr_listserv.db','id_lookup.csv')
-#gmail = GmailAPI(db)
-#gmail.loadMsgs(listservs)
-#db.updateLookup()
-#db.joinThreads()
-db.addTextMetadata()
-db.commit()
+gmail = GmailAPI(db)
+gmail.loadMsgs(listservs)
+db.updateLookup()
+db.joinThreads()
 
 # Close SQLite connection, upload updated db file
 db.close()
-#ftp.stor('kdr_listserv.db')
+ftp.stor('kdr_listserv.db')

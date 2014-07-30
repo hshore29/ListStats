@@ -68,7 +68,7 @@ class GmailAPI:
                     
             print "Finished " + item['name'] + "!"
 
-    # Return a list of messages with the given label & matching the given query
+    # Return a list of message ids with the given label & matching the given query
     def getMsgIds(self,label,query):
         # Get list of messages given label, query
         msgs = self.messages.list(userId='me', labelIds=label,
@@ -131,16 +131,15 @@ class GmailAPI:
 
             return output
 
-        # Process body
         msg = {}
         msg = getBody(response['payload'],msg)
         
         # If there is a text/plain component, parse and insert it
         if 'text/plain' in msg.keys():
             text = self.removeQuotes(msg['text/plain'],True)
-            self.db.insertText((msgId,text))
+            self.db.insertText((response['id'],text))
         
-        # Insert record into db
+        # Insert header data into messages tabel
         self.db.insertMsg((response['id'],response['threadId'],response['threadId'],
                            date,sender,alias,subject,response['snippet'],
                            response['sizeEstimate'],listserv))

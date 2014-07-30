@@ -1,6 +1,7 @@
 import sqlite3, csv, datetime
 from readability import FleschKincaid
 
+# Define common SQL statements
 messages_create = ("""
 CREATE TABLE IF NOT EXISTS `messages` (
   `id` TEXT NOT NULL,
@@ -113,15 +114,22 @@ class Database:
         # Commit changes
         self.db_con.commit()
 
+    def insertReplace(self,insert,replace,record):
+        # Attempt to insert record - if error, replace instead
+        try:
+            self.db_cur.execute(insert,record)
+        except:
+            self.db_cur.execute(replace,record)
+
     def loadLookup(self,lookup):
         # Load id_lookup file into id_lookup table
         with open(lookup) as file:
             netids = csv.DictReader(file)
             id_lookup_data = [(i['sender'].lower(),i['netid'].lower()) for i in netids]
-        try:
-            self.db_cur.executemany(id_lookup_insert,id_lookup_data)
-        except:
-            self.db_cur.executemany(id_lookup_replace,id_lookup_data)
+
+        # Insert records
+        for id_lookup in id_lookup_data:
+            self.insertReplace(id_lookup_insert,id_lookup_replace,id_lookup)
 
         # Commit changes
         self.commit()
@@ -171,26 +179,19 @@ class Database:
                     
     def insertMsg(self,record):
         # Insert record into messages table
-        try:
-            self.db_cur.execute(messages_insert,record)
-        except:
-            self.db_cur.execute(messages_replace,record)
+        self.insertReplace(messages_insert,messages_replace,record)
 
     def insertText(self,record):
         # Insert record into text table
-        try:
-            self.db_cur.execute(text_insert,record)
-        except:
-            self.db_cur.execute(text_replace,record)
+        self.insertReplace(text_insert,text_replace,record)
 
-        # Calculate readability metrics, insert into meta text table
+        # Calculate readability metrics
         fk = FleschKincaid(record[1])
         metarecord = (record[0],fk.sent_count,fk.word_count,
                       fk.syll_count,fk.gradeLevel(),fk.minAge())
-        try:
-            self.db_cur.execute(textmeta_insert,metarecord)
-        except:
-            self.db_cur.execute(textmeta_replace,metarecord)
+
+        # Insert text metadata
+        self.insertReplace(textmeta_insert,textmeta_replace,metarecord)
 
     def getTimestamp(self):
         # Get last version, return
@@ -203,19 +204,15 @@ class Database:
         return ts
 
     def addTextMetadata(self):
+        # Method used to calculate metadata for all records in text
+        # without having to reload the entire database
         self.db_cur.execute("SELECT * FROM text")
         data = self.db_cur.fetchall()
-        print len(data)
-        n=0
+        
         for line in data:
-            n += 1
             fk = FleschKincaid(line[1])
             metarecord = (line[0],fk.sent_count,fk.word_count,
                       fk.syll_count,fk.gradeLevel(),fk.minAge())
-            try:
-                self.db_cur.execute(textmeta_insert,metarecord)
-            except:
-                self.db_cur.execute(textmeta_replace,metarecord)
-            if (n%20) == 0:
-                self.commit()
-                print str(float(n) / len(data)*100) + "%%"
+            self.insertReplace(textmeta_insert,textmeta_replace,metarecord)
+
+        self.commit()

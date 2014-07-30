@@ -1,0 +1,8 @@
+
+*.json
+
+*.pyc
+
+*.storage
+
+*.db
