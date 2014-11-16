@@ -186,14 +186,14 @@ class Database:
         self.insertReplace(text_insert,text_replace,record)
 
         # Calculate readability metrics
-        fk = FleschKincaid(record[1])
-        metarecord = (record[0],fk.sent_count,fk.word_count,
-                      fk.syll_count,fk.gradeLevel(),fk.minAge())
+        #fk = FleschKincaid(record[1])
+        #metarecord = (record[0],fk.sent_count,fk.word_count,
+        #              fk.syll_count,fk.gradeLevel(),fk.minAge())
 
         # Insert text metadata
-        self.insertReplace(textmeta_insert,textmeta_replace,metarecord)
+        #self.insertReplace(textmeta_insert,textmeta_replace,metarecord)
 
-    def getTimestamp(self):
+    def getTimestamp(self,label=None):
         # Get last version, return
         self.db_cur.execute("SELECT date FROM messages ORDER BY date DESC LIMIT 1")
         ts = self.db_cur.fetchall()
