@@ -8,3 +8,11 @@
 *.db
 
 *.out
+
+WebApp/colorbrewer.js
+
+WebApp/d3.layout.cloud.js
+
+DB Builder/nltk_download.py
+
+DB Builder/credentials.py
