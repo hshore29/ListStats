@@ -1,0 +1,30 @@
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.x.axis path {
+  display: none;
+}
+
+.line {
+  fill: none;
+  stroke: steelblue;
+  stroke-width: 2px;
+}
+
+table#toplists {
+    width: 100%;
+}
+
+td.Spams, td.Responses {
+    text-align: right;
+}
+
+td.dash {
+    background: #578bb8;
+    color: #ffffff;
+    padding: 10px;
+}

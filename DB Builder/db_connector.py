@@ -43,49 +43,26 @@ CREATE TABLE IF NOT EXISTS `id_lookup` (
 );""")
 
 id_lookup_insert = ("""
-INSERT INTO `id_lookup`
-(sender,netid)
-VALUES (?,?)
-;""")
-
-id_lookup_replace = ("""
-REPLACE INTO `id_lookup`
+INSERT OR REPLACE INTO `id_lookup`
 (sender,netid)
 VALUES (?,?)
 ;""")
 
 messages_insert=("""
-INSERT INTO messages
-(id,threadId,metaThread,date,sender,alias,subject,snippet,sizeEst,listserv)
-VALUES (?,?,?,?,?,?,?,?,?,?);
-""")
-
-messages_replace=("""
-REPLACE INTO messages
+INSERT OR REPLACE INTO messages
 (id,threadId,metaThread,date,sender,alias,subject,snippet,sizeEst,listserv)
 VALUES (?,?,?,?,?,?,?,?,?,?);
 """)
 
 text_insert = ("""
-INSERT INTO `text`
+INSERT OR REPLACE INTO `text`
 (id,text)
 VALUES (?,?)
 ;""")
 
-text_replace = ("""
-REPLACE INTO `text`
-(id,text)
-VALUES (?,?)
-;""")
 
 textmeta_insert = ("""
-INSERT INTO `textmeta`
-(id,sent_count,word_count,syll_count,us_grade,min_age)
-VALUES (?,?,?,?,?,?)
-;""")
-
-textmeta_replace = ("""
-REPLACE INTO `textmeta`
+INSERT OR REPLACE INTO `textmeta`
 (id,sent_count,word_count,syll_count,us_grade,min_age)
 VALUES (?,?,?,?,?,?)
 ;""")
@@ -106,6 +83,14 @@ class Database:
         self.lookup = file
         self.loadLookup(self.lookup)
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, error_type, error_value, traceback):
+        self.commit()
+        self.close()
+        return False
+
     def close(self):
         # Close connection
         self.db_con.close()
@@ -114,22 +99,15 @@ class Database:
         # Commit changes
         self.db_con.commit()
 
-    def insertReplace(self,insert,replace,record):
-        # Attempt to insert record - if error, replace instead
-        try:
-            self.db_cur.execute(insert,record)
-        except:
-            self.db_cur.execute(replace,record)
-
-    def loadLookup(self,lookup):
+    def loadLookup(self, lookup):
         # Load id_lookup file into id_lookup table
         with open(lookup) as file:
             netids = csv.DictReader(file)
-            id_lookup_data = [(i['sender'].lower(),i['netid'].lower()) for i in netids]
+            id_lookup_data = [(i['sender'].lower(), i['netid'].lower()) for i in netids]
 
         # Insert records
         for id_lookup in id_lookup_data:
-            self.insertReplace(id_lookup_insert,id_lookup_replace,id_lookup)
+            self.db_cur.execute(id_lookup_insert, id_lookup)
 
         # Commit changes
         self.commit()
@@ -142,7 +120,7 @@ class Database:
         lookups = self.db_cur.fetchall()
 
         # If there is a new email not in the lookup table
-        with open(self.lookup,'a') as file:
+        with open(self.lookup, 'a') as file:
             csvWriter = csv.writer(file)
             for email in senders:
                 if email not in lookups:
@@ -151,8 +129,8 @@ class Database:
                     else:
                         netid = raw_input('ID for ' + email[0] + ':')
                     lookups.append(email)
-                    csvWriter.writerow([email[0],netid])
-                    self.db_cur.execute(id_lookup_insert,[email[0],netid])
+                    csvWriter.writerow([email[0], netid])
+                    self.db_cur.execute(id_lookup_insert, [email[0], netid])
 
         # Commit changes
         self.commit()
@@ -166,24 +144,24 @@ class Database:
         for email in splitThreads:
             subject = email[1].replace('Re: ','').replace('RE: ','')
             fwdSubject = 'Fwd: ' + subject
-            self.db_cur.execute("SELECT date,id FROM messages WHERE subject IN (?,?) AND id = threadId",[subject,fwdSubject])
+            self.db_cur.execute("SELECT date,id FROM messages WHERE subject IN (?,?) AND id = threadId", [subject, fwdSubject])
             matches = self.db_cur.fetchall()
             
             # If there is a single match, group the threads
             if matches:
                 if len(matches) == 1:
-                    self.db_cur.execute("UPDATE messages SET metaThread = ? WHERE threadId = ?",[matches[0][1],email[0]])
+                    self.db_cur.execute("UPDATE messages SET metaThread = ? WHERE threadId = ?", [matches[0][1], email[0]])
                     
         # Commit changes
         self.commit()
                     
-    def insertMsg(self,record):
+    def insertMsg(self, record):
         # Insert record into messages table
-        self.insertReplace(messages_insert,messages_replace,record)
+        self.db_cur.execute(messages_insert, record)
 
-    def insertText(self,record):
+    def insertText(self, record):
         # Insert record into text table
-        self.insertReplace(text_insert,text_replace,record)
+        self.db_cur.execute(text_insert, record)
 
         # Calculate readability metrics
         #fk = FleschKincaid(record[1])
@@ -193,7 +171,7 @@ class Database:
         # Insert text metadata
         #self.insertReplace(textmeta_insert,textmeta_replace,metarecord)
 
-    def getTimestamp(self,label=None):
+    def getTimestamp(self, label=None):
         # Get last version, return
         self.db_cur.execute("SELECT date FROM messages ORDER BY date DESC LIMIT 1")
         ts = self.db_cur.fetchall()
@@ -211,8 +189,8 @@ class Database:
         
         for line in data:
             fk = FleschKincaid(line[1])
-            metarecord = (line[0],fk.sent_count,fk.word_count,
-                      fk.syll_count,fk.gradeLevel(),fk.minAge())
-            self.insertReplace(textmeta_insert,textmeta_replace,metarecord)
+            metarecord = (line[0], fk.sent_count, fk.word_count,
+                          fk.syll_count, fk.gradeLevel(), fk.minAge())
+            self.db_cur.execute(textmeta_insert, metarecord)
 
         self.commit()

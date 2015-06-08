@@ -6,3 +6,5 @@
 *.storage
 
 *.db
+
+*.out
